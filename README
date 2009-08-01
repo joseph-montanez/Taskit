@@ -1,4 +1,7 @@
-Currently Support: 
+Taskit is to turn into a full offline project management web application. Safari and Sync
+support will come later but for now I am targeting a few limited feature set.
+
+Currently Support (Targeting ~33% of global marketshare): 
     Firefox 3.0 
     Firefox 3.5
     Internet Explorer 8
