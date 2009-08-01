@@ -1,0 +1,173 @@
+<html manifest="todo.manifest"> 
+<head>
+    <script type="text/javascript" src="http://gorilla3d.com/json2.js"></script>
+    <script type="text/javascript">
+        // Classes
+        function Gorilla3D() {}
+        Gorilla3D.prototype.Storage = function () {
+            this.storageDomain = location.hostname;
+            if (this.storageDomain == "localhost") {
+                this.storageDomain += ".localdomain";
+            }
+            this.store = false;
+            if(typeof localStorage !== 'undefined') {
+                this.store = localStorage;
+                this.getItem = function (key) {
+                    return this.store.getItem(key);
+                }
+                this.setItem = function (key, value) {
+                    this.store.setItem(key, value);
+                }
+            } else if(typeof globalStorage !== 'undefined') {
+                this.store = globalStorage[this.storageDomain];
+                this.setItem = function (key, value) {
+                    this.store[key] = value;
+                };
+                this.getItem = function (key) {
+                    return this.store[key];
+                };
+            } else {
+                // TODO: tell them they can't use this webapp
+            }
+        }
+        
+        Gorilla3D.prototype.TaskTable = function () {
+            this.rows = [];
+            this.toString =  function () {
+                return JSON.stringify(this.rows, function (key, value) {
+                    return value;
+                });
+            };
+            this.fromString = function (rows) {
+                this.rows = eval('(' + rows + ')');
+            };
+            this.each = function (func) {
+                for (var i=0, row; row = this.rows[i++];) {
+                    func(row, i);
+                }
+                return this;
+            };
+            this.get = function (task_id) {
+                var $TaskTable = this;
+                var task = false;
+                this.each(function (row, i) {
+                    if(row.id === task_id) {
+                        task = row;
+                        return;
+                    }
+                });
+                return task;
+            };
+        }
+        
+        // Namespaces
+        var g3d = new Gorilla3D();
+        // Globals 
+        var taskStorage = "[]";
+        var tasks = new g3d.TaskTable();
+        var storage = new g3d.Storage();
+        
+        function loaded() {
+            if (storage && storage.getItem('taskStorage')) {
+                taskStorage = storage.getItem('taskStorage');
+            } 
+            tasks.fromString(taskStorage);
+            loadList();
+        }
+        
+        function loadList() {
+            var taskList = document.getElementById("tasklist");
+            taskList.innerHTML = '';
+            tasks.each(function (task, i) {
+                var input = document.createElement('input');
+                input.setAttribute('type', 'checkbox');
+                input.setAttribute('id', 'task_' + task.id);
+                input.setAttribute('task_id', task.id);
+                taskList.appendChild(input);
+                
+                var label = document.createElement('label');
+                label.setAttribute('type', 'checkbox');
+                label.setAttribute('id', 'task_' + task.id);
+                taskList.appendChild(label);
+                
+                var text = document.createTextNode(task.name);
+                if(task.status === 'completed') {
+                    var del = document.createElement('del');
+                    del.appendChild(text);  
+                    taskList.appendChild(del);                  
+                } else {
+                    taskList.appendChild(text);
+                }
+                
+                var br = document.createElement('br');
+                taskList.appendChild(br);
+            });
+            saveToDisk();
+        }
+        
+        function saveToDisk() {
+            storage.setItem('taskStorage', tasks.toString());
+        }
+        
+        function addTask(form) {
+            var task_date = new Date();
+            var task_id = task_date + "";
+            task_id = task_id.match(/\d+/g).join('') + Math.floor(Math.random() * 1000);
+            tasks.rows.push({
+                'id': task_id,
+                'name': form.task_name.value,
+                //'date': task_date,
+                'status': 'uncompleted'
+            });
+            loadList();
+        }
+        
+        function getCheckedTasks(form) {
+            var elems = form.elements;
+            var elen = elems.length;
+            var checked = []
+            for(var i = 0; i < elen; i++) {
+                if(elems[i].getAttribute('type') === 'checkbox' && elems[i].checked === true) {
+                    checked.push(elems[i]);
+                }
+            }
+            return checked;
+        }
+        
+        function completeTasks(form) {
+            var elems = getCheckedTasks(form);
+            var elen = elems.length;
+            for(var i = 0; i < elen; i++) {
+                var ele = elems[i];
+                var task = tasks.get(ele.getAttribute('task_id'));
+                task.status = 'completed';
+            }
+            loadList();
+        }
+        
+        function uncompleteTasks(form) {
+            var elems = getCheckedTasks(form);
+            var elen = elems.length;
+            for(var i = 0; i < elen; i++) {
+                var ele = elems[i];
+                var task = tasks.get(ele.getAttribute('task_id'));
+                task.status = 'uncompleted';
+            }
+            loadList();
+        }
+    </script>
+</head>
+<body onload="loaded()">
+    <form action="" onsubmit="return false">
+        <div id="tasklist"></div>
+        <input type="button" value="Done" onclick="completeTasks(this.form);"/> 
+        <input type="button" value="Not Done" onclick="uncompleteTasks(this.form);"/> 
+        <input type="button" value="Delete" onclick="deleteTasks(this.form);"/> 
+    </form>
+    <form action="" onsubmit="return false">
+        <input type="text" id="task_name" size="35" /> 
+        <input type="button" value="Add" onclick="addTask(this.form);"/> 
+    </form>
+    <button onclick="storage.setItem('taskStorage', '[]'); loaded();">Clear Storage</button>
+</body>
+</html>
