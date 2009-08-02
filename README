@@ -1,7 +1,13 @@
-Taskit is to turn into a full offline project management web application. Safari and Sync
-support will come later but for now I am targeting a few limited feature set.
+Taskit is to turn into a full offline project management web application. Sync
+support will come later but for now my goal is very little features working well.
 
-Currently Support (Targeting ~33% of global marketshare): 
+Current Browser Support
+    Firefox 2.* 
     Firefox 3.0 
     Firefox 3.5
+	Safari 4
+	Safari 3.1
+	Safari 3.2
     Internet Explorer 8
+    Chrome 1.x
+    Chrome 2.x
