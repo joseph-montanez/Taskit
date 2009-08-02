@@ -1,3 +1,4 @@
+<!doctype html>
 <html manifest="todo.manifest"> 
 <head>
     <script type="text/javascript" src="http://gorilla3d.com/json2.js"></script>
@@ -12,19 +13,80 @@
             this.store = false;
             if(typeof localStorage !== 'undefined') {
                 this.store = localStorage;
-                this.getItem = function (key) {
-                    return this.store.getItem(key);
+                this.getItem = function (key, func) {
+                    func(this.store.getItem(key));
                 }
                 this.setItem = function (key, value) {
                     this.store.setItem(key, value);
+                    return this;
                 }
             } else if(typeof globalStorage !== 'undefined') {
                 this.store = globalStorage[this.storageDomain];
                 this.setItem = function (key, value) {
                     this.store[key] = value;
+                    return this;
                 };
                 this.getItem = function (key) {
-                    return this.store[key];
+                    func(this.store[key]);
+                };
+            } else if(typeof window.openDatabase !== 'undefined') {
+                this.store = openDatabase(this.storageDomain, '1.0', "G3D Storage Alternative", 200000);
+                if(!this.store) {
+                    console.log('unable to open database');
+                }
+                // Create the Database
+                this.store.transaction(function (tx) {
+                    tx.executeSql(
+                        'SELECT COUNT(*) FROM storage', [], function(result) {}, 
+                        function(tx, error) {
+                            // Create Database
+                            var sql = 'CREATE TABLE storage ('
+                                  + 'storage_key VARCHAR(255) UNIQUE,'
+                                  + 'storage_value TEXT'
+                                + ')';
+                            tx.executeSql(sql, [], function(result) {});
+                        }
+                    );
+                });    
+                this.setItem = function (key, value) {
+                    var exists = false;
+                    
+                    this.store.transaction(function (tx) {
+                        // See if the key exists
+                        var sql = 'SELECT storage_key FROM storage WHERE storage_key = ?';
+                        tx.executeSql(sql, [key], function (tx, result) {
+                            if(result.rows.length > 0) {
+                                exists = true;
+                            }
+                            // Toggle between an update / insert
+                            if(exists !== true) {
+                                sql = 'INSERT INTO storage (storage_key, storage_value) VALUES(?, ?)';
+                                tx.executeSql(sql, [key, value], function (tx, result) {}, function(tx, error) {
+                                    alert('INSERT ERROR: ' + error.message);
+                                });
+                            } else {
+                                sql = 'UPDATE storage SET storage_value = ? WHERE storage_key = ?';
+                                tx.executeSql(sql, [value, key], function (tx, result) {}, function(tx, error) {
+                                    alert('UPDATE ERROR: ' + error.message);
+                                });
+                            }
+                        });
+                    });
+                    return this;
+                };
+                this.getItem = function (key, func) {
+                    var $Storage = this;
+                    storage_value = false;
+                    var sql = 'SELECT storage_value FROM storage WHERE storage_key = ?';
+                    this.store.transaction(function (tx) {
+                        tx.executeSql(sql, [key], function (tx, result) {
+                            if(result.rows.length > 0) {
+                                func(result.rows.item(0).storage_value);tasks.toString()
+                            }
+                        }, function (tx, error) {
+                            alert('GET ERROR: ' + error.message);
+                        });
+                    });
                 };
             } else {
                 // TODO: tell them they can't use this webapp
@@ -42,8 +104,11 @@
                 this.rows = eval('(' + rows + ')');
             };
             this.each = function (func) {
-                for (var i=0, row; row = this.rows[i++];) {
-                    func(row, i);
+                var rlen = this.rows.length;
+                for (var i=0; i < rlen; i++) {
+                    if(typeof this.rows[i] === 'object') {
+                        func(this.rows[i], i);
+                    }
                 }
                 return this;
             };
@@ -53,6 +118,18 @@
                 this.each(function (row, i) {
                     if(row.id === task_id) {
                         task = row;
+                        return;
+                    }
+                });
+                return task;
+            };
+            this.remove = function (task_id) {
+                var $TaskTable = this;
+                var task = false;
+                this.each(function (row, i) {
+                    if(row.id === task_id) {
+                        task = row;
+                        delete $TaskTable.rows[i];
                         return;
                     }
                 });
@@ -68,11 +145,13 @@
         var storage = new g3d.Storage();
         
         function loaded() {
-            if (storage && storage.getItem('taskStorage')) {
-                taskStorage = storage.getItem('taskStorage');
-            } 
-            tasks.fromString(taskStorage);
-            loadList();
+            storage.getItem('taskStorage', function (value) {
+                if (value) {
+                    taskStorage = value
+                } 
+                tasks.fromString(taskStorage);
+                loadList();
+            });
         }
         
         function loadList() {
@@ -141,6 +220,16 @@
                 var ele = elems[i];
                 var task = tasks.get(ele.getAttribute('task_id'));
                 task.status = 'completed';
+            }
+            loadList();
+        }
+        
+        function deleteTasks(form) {
+            var elems = getCheckedTasks(form);
+            var elen = elems.length;
+            for(var i = 0; i < elen; i++) {
+                var ele = elems[i];
+                var task = tasks.remove(ele.getAttribute('task_id'));
             }
             loadList();
         }
