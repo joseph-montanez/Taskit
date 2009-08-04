@@ -15,14 +15,22 @@ Gorilla3D.Storage = function () {
             this.store.setItem(key, value);
             return this;
         };
+        this.removeItem = function (key) {
+            this.store.removeItem(key);
+            return this;
+        };
     } else if (typeof globalStorage !== 'undefined') {
         this.store = globalStorage[this.storageDomain];
         this.setItem = function (key, value) {
             this.store[key] = value;
             return this;
         };
-        this.getItem = function (key) {
+        this.getItem = function (key, func) {
             func(this.store[key]);
+        };
+        this.removeItem = function (key) {
+            delete this.store[key];
+            return this;
         };
     } else if (typeof window.openDatabase !== 'undefined') {
         // Safari 3.1 & 3.2
@@ -81,6 +89,20 @@ Gorilla3D.Storage = function () {
                     alert('GET ERROR: ' + error.message);
                 });
             });
+            return this;
+        };
+        this.removeItem = function (key) {
+            var sql = 'DELETE FROM storage WHERE storage_key = ?';
+            this.store.transaction(function (tx) {
+                tx.executeSql(sql, [key], function (tx, result) {
+                    if (result.rows.length > 0) {
+                        func(result.rows.item(0).storage_value);
+                    }
+                }, function (tx, error) {
+                    alert('GET ERROR: ' + error.message);
+                });
+            });
+            return this;
         };
     } else if (window.google && google.gears) {
         // Gears / Chrome Support
@@ -117,6 +139,13 @@ Gorilla3D.Storage = function () {
                 func(result.field(0));
             }
             result.close();
+            return this;
+        };
+        this.removeItem = function (key) {
+            var sql = 'DELETE FROM storage WHERE storage_key = ?',
+            result = this.store.execute(sql, [key]);
+            result.close();
+            return this;
         };
     } else {
         // TODO: tell them they can't use this webapp
