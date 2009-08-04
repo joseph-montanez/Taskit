@@ -1,99 +1,11 @@
 <!doctype html>
 <html manifest="todo.manifest"> 
 <head>
-    <script type="text/javascript" src="http://gorilla3d.com/json2.js"></script>
+    <script type="text/javascript" src="http://labs.gorilla3d.com/taskit/json2.js"></script>
+    <script type="text/javascript" src="http://labs.gorilla3d.com/taskit/gears.js"></script>
+    <script type="text/javascript" src="http://labs.gorilla3d.com/taskit/gorilla3d.js"></script>
     <script type="text/javascript">
-        // Classes
-        function Gorilla3D() {}
-        Gorilla3D.prototype.Storage = function () {
-            this.storageDomain = location.hostname;
-            if (this.storageDomain == "localhost") {
-                this.storageDomain += ".localdomain";
-            }
-            this.store = false;
-            if(typeof localStorage !== 'undefined') {
-                this.store = localStorage;
-                this.getItem = function (key, func) {
-                    func(this.store.getItem(key));
-                }
-                this.setItem = function (key, value) {
-                    this.store.setItem(key, value);
-                    return this;
-                }
-            } else if(typeof globalStorage !== 'undefined') {
-                this.store = globalStorage[this.storageDomain];
-                this.setItem = function (key, value) {
-                    this.store[key] = value;
-                    return this;
-                };
-                this.getItem = function (key) {
-                    func(this.store[key]);
-                };
-            } else if(typeof window.openDatabase !== 'undefined') {
-                this.store = openDatabase(this.storageDomain, '1.0', "G3D Storage Alternative", 200000);
-                if(!this.store) {
-                    console.log('unable to open database');
-                }
-                // Create the Database
-                this.store.transaction(function (tx) {
-                    tx.executeSql(
-                        'SELECT COUNT(*) FROM storage', [], function(result) {}, 
-                        function(tx, error) {
-                            // Create Database
-                            var sql = 'CREATE TABLE storage ('
-                                  + 'storage_key VARCHAR(255) UNIQUE,'
-                                  + 'storage_value TEXT'
-                                + ')';
-                            tx.executeSql(sql, [], function(result) {});
-                        }
-                    );
-                });    
-                this.setItem = function (key, value) {
-                    var exists = false;
-                    
-                    this.store.transaction(function (tx) {
-                        // See if the key exists
-                        var sql = 'SELECT storage_key FROM storage WHERE storage_key = ?';
-                        tx.executeSql(sql, [key], function (tx, result) {
-                            if(result.rows.length > 0) {
-                                exists = true;
-                            }
-                            // Toggle between an update / insert
-                            if(exists !== true) {
-                                sql = 'INSERT INTO storage (storage_key, storage_value) VALUES(?, ?)';
-                                tx.executeSql(sql, [key, value], function (tx, result) {}, function(tx, error) {
-                                    alert('INSERT ERROR: ' + error.message);
-                                });
-                            } else {
-                                sql = 'UPDATE storage SET storage_value = ? WHERE storage_key = ?';
-                                tx.executeSql(sql, [value, key], function (tx, result) {}, function(tx, error) {
-                                    alert('UPDATE ERROR: ' + error.message);
-                                });
-                            }
-                        });
-                    });
-                    return this;
-                };
-                this.getItem = function (key, func) {
-                    var $Storage = this;
-                    storage_value = false;
-                    var sql = 'SELECT storage_value FROM storage WHERE storage_key = ?';
-                    this.store.transaction(function (tx) {
-                        tx.executeSql(sql, [key], function (tx, result) {
-                            if(result.rows.length > 0) {
-                                func(result.rows.item(0).storage_value);tasks.toString()
-                            }
-                        }, function (tx, error) {
-                            alert('GET ERROR: ' + error.message);
-                        });
-                    });
-                };
-            } else {
-                // TODO: tell them they can't use this webapp
-            }
-        }
-        
-        Gorilla3D.prototype.TaskTable = function () {
+        Gorilla3D.TaskTable = function () {
             this.rows = [];
             this.toString =  function () {
                 return JSON.stringify(this.rows, function (key, value) {
@@ -137,12 +49,10 @@
             };
         }
         
-        // Namespaces
-        var g3d = new Gorilla3D();
         // Globals 
         var taskStorage = "[]";
-        var tasks = new g3d.TaskTable();
-        var storage = new g3d.Storage();
+        var tasks = new Gorilla3D.TaskTable();
+        var storage = new Gorilla3D.Storage();
         
         function loaded() {
             storage.getItem('taskStorage', function (value) {
@@ -247,6 +157,7 @@
     </script>
 </head>
 <body onload="loaded()">
+
     <form action="" onsubmit="return false">
         <div id="tasklist"></div>
         <input type="button" value="Done" onclick="completeTasks(this.form);"/> 
@@ -258,5 +169,7 @@
         <input type="button" value="Add" onclick="addTask(this.form);"/> 
     </form>
     <button onclick="storage.setItem('taskStorage', '[]'); loaded();">Clear Storage</button>
+
 </body>
 </html>
+
