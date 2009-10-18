@@ -1,19 +1,17 @@
 <!doctype html>
 <html manifest="todo.manifest"> 
 <head>
-    <script type="text/javascript" src="http://labs.gorilla3d.com/taskit/json2.js"></script>
-    <script type="text/javascript" src="http://labs.gorilla3d.com/taskit/gears.js"></script>
-    <script type="text/javascript" src="http://labs.gorilla3d.com/taskit/gorilla3d.js"></script>
+    <script type="text/javascript" src="gears.js"></script>
+    <script type="text/javascript" src="gorilla3d.js"></script>
+    <script type="text/javascript" src="mootools-1.2.3-core-yc.js"></script>
     <script type="text/javascript">
         Gorilla3D.TaskTable = function () {
             this.rows = [];
             this.toString =  function () {
-                return JSON.stringify(this.rows, function (key, value) {
-                    return value;
-                });
+				return JSON.encode(this.rows);
             };
             this.fromString = function (rows) {
-                this.rows = eval('(' + rows + ')');
+                this.rows = JSON.decode(rows);
             };
             this.each = function (func) {
                 var rlen = this.rows.length;
@@ -65,31 +63,69 @@
         }
         
         function loadList() {
-            var taskList = document.getElementById("tasklist");
-            taskList.innerHTML = '';
-            tasks.each(function (task, i) {
-                var input = document.createElement('input');
-                input.setAttribute('type', 'checkbox');
-                input.setAttribute('id', 'task_' + task.id);
-                input.setAttribute('task_id', task.id);
-                taskList.appendChild(input);
+            var taskList = $("tasklist");
+            taskList.empty();
+            tasks.rows.each(function (task, i) {
+                var input = new Element('input', {
+					'type': 'checkbox',
+					'id': 'task_' + task.id,
+					'task_id': task.id
+				});
+				input.inject(taskList);
                 
-                var label = document.createElement('label');
-                label.setAttribute('type', 'checkbox');
-                label.setAttribute('id', 'task_' + task.id);
-                taskList.appendChild(label);
+                var label = new Element('label', {
+					'for': 'task_' + task.id
+				});
+				label.inject(taskList);
                 
-                var text = document.createTextNode(task.name);
+                var text = task.name;
                 if(task.status === 'completed') {
-                    var del = document.createElement('del');
-                    del.appendChild(text);  
-                    taskList.appendChild(del);                  
+                    var del = new Element('del', {
+					 'html': text   
+					});
+					del.inject(label);
                 } else {
-                    taskList.appendChild(text);
+                    label.appendText(text);
                 }
-                
-                var br = document.createElement('br');
-                taskList.appendChild(br);
+               
+				label.appendText(' ');
+
+			    var a = new Element('a', {
+                   'html': 'u',
+				   'href': '#',
+				   'events': {
+					   'click': function (evt) {
+					    	evt.stop();
+                            var taskId = this.getPrevious('input').get('task_id');
+							var currentTask = false;
+							var topTasks = [];
+							var bottomTasks = [];
+							var toggle = 'top';
+							tasks.rows.each(function (task, i) {
+							 	if(task.id !== taskId) {
+									if(toggle === 'top') {
+										topTasks.push(task);
+									} else {
+										bottomTasks.push(task);
+									}
+								} else {
+                                	currentTask = task;
+									toggle = 'bototm';
+								}
+							});
+							var lastTask = topTasks.pop();
+							topTasks.push(currentTask);
+							topTasks.push(lastTask);
+							tasks.rows = topTasks.include(bottomTasks).flatten();
+							saveToDisk();
+							loadList();
+						}
+				   }
+				});
+				a.inject(taskList);
+
+                var br = new Element('br');
+                br.inject(taskList);
             });
             saveToDisk();
         }
@@ -109,6 +145,7 @@
                 'status': 'uncompleted'
             });
             loadList();
+			form.task_name.set('value', '');
         }
         
         function getCheckedTasks(form) {
@@ -155,9 +192,14 @@
             loadList();
         }
     </script>
+	<style type="text/css">
+		.task_add {
+        	min-width: 100px;
+			max-width: 75%;
+		}
+	</style>
 </head>
 <body onload="loaded()">
-
     <form action="" onsubmit="return false">
         <div id="tasklist"></div>
         <input type="button" value="Done" onclick="completeTasks(this.form);"/> 
@@ -165,11 +207,9 @@
         <input type="button" value="Delete" onclick="deleteTasks(this.form);"/> 
     </form>
     <form action="" onsubmit="return false">
-        <input type="text" id="task_name" size="35" /> 
+        <input type="text" id="task_name" class="task_add" /> 
         <input type="button" value="Add" onclick="addTask(this.form);"/> 
     </form>
     <button onclick="storage.setItem('taskStorage', '[]'); loaded();">Clear Storage</button>
-
 </body>
 </html>
-
